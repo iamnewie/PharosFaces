@@ -14,10 +14,14 @@
 #include<stdio.h>
 #include<winsock2.h>
 #include <windows.h>
+#include <winapifamily.h>
 #define WIN32_LEAN_AND_MEAN
 
 using namespace cv;
 using namespace std;
+
+//Function identifier
+void faceRecognition(char fileName[]);
 
 static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';') {
 	std::ifstream file(filename.c_str(), ifstream::in);
@@ -144,7 +148,9 @@ int OpenSocket(int argc, const char *argv[])
 	char* recvbuf = (char*)malloc(sizeof(char) * (width * height));
 
 	FILE* tempfile;
-	tempfile = tmpfile();
+	char tempFileName[L_tmpnam]; // Create temporary file name
+	tmpnam(tempFileName);
+	tempfile = fopen(tempFileName, "wb");
 
 	int readbyte = 0;
 	do {
@@ -164,7 +170,9 @@ int OpenSocket(int argc, const char *argv[])
 
 	printf("Total Bytes Received = %d", readbyte);
 
-	faceRecognition(*tempfile);
+	printf("%s", tempFileName);
+
+	faceRecognition(tempFileName);
 
 	fclose(tempfile);
 	
@@ -252,14 +260,7 @@ int OpenSocket(int argc, const char *argv[])
 			int pos_y = max(face_i.tl().y - 10, 0);
 			putText(original, box_text, Point(pos_x, pos_y), FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0, 255, 0), 2.0);
 		}*/
-
-		// Show the result:
-		//imshow("face_recognizer", imagenew);
-		// And display it:
-		char key = (char)waitKey(20);
-		// Exit this loop on escape:
-		if (key == 27)
-			break;
+		
 	}
 
 
@@ -273,12 +274,16 @@ int OpenSocket(int argc, const char *argv[])
 }
 
 // Do face recognition here
-void faceRecognition(FILE file) {
-
-	Mat receivedImage = imread();
-
-
-
+void faceRecognition(char fileName[]) {
+	while (1) {
+		Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
+		namedWindow("DisplayWindow", WINDOW_AUTOSIZE);
+		imshow("DisplayWindow", receivedImage);
+		char key = (char)waitKey(20);
+		// Exit this loop on escape:
+		if (key == 27)
+			break;
+	}
 }
 
 
