@@ -1,21 +1,3 @@
- /*
-* Copyright (c) 2011. Philipp Wagner <bytefish[at]gmx[dot]de>.
-* Released to public domain under terms of the BSD Simplified license.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are met:
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above copyright
-*     notice, this list of conditions and the following disclaimer in the
-*     documentation and/or other materials provided with the distribution.
-*   * Neither the name of the organization nor the names of its contributors
-*     may be used to endorse or promote products derived from this software
-*     without specific prior written permission.
-*
-*   See <http://www.opensource.org/licenses/bsd-license>
-*/
-
 #include "opencv2/core/core.hpp"
 #include "opencv2/contrib/contrib.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -93,6 +75,7 @@ int OpenSocket(int argc, const char *argv[])
 	if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
 	{
 		printf("Bind failed with error code : %d", WSAGetLastError());
+		return 0;
 	}
 
 	puts("Bind done");
@@ -110,68 +93,65 @@ int OpenSocket(int argc, const char *argv[])
 	if (new_socket == INVALID_SOCKET)
 	{
 		printf("accept failed with error code : %d", WSAGetLastError());
+		return 0;
 	}
 
 	puts("Connection accepted");
 
 	//Code STREAM CODE HERE
 
-	//	int max;
+	//Listen for response code for Initiation
 	int iResult = 0;
 	int width;
 	int height;
-
-
 	int count;
-
 	char responsebuff[BUFFER_SIZE];
 
-		iResult = recv(new_socket, responsebuff, BUFFER_SIZE, 0);
-		if (iResult > 0) {
+	iResult = recv(new_socket, responsebuff, BUFFER_SIZE, 0);
+	if (iResult > 0) {
 
-			string str(responsebuff);
-			printf("Response buff is %s",responsebuff);
-			size_t found = str.find("SIZE");
-			if (found != string::npos) {
-				char * split;
-				split = strtok(responsebuff, ";");
-				split = strtok(NULL, ";");
-				width = atoi(split);
-				split = strtok(NULL, ";");
-				height = atoi(split);
+		string str(responsebuff);
+		printf("Response buff is %s", responsebuff);
+		size_t found = str.find("SIZE");
+		if (found != string::npos) {
+			char * split;
+			split = strtok(responsebuff, ";");
+			split = strtok(NULL, ";");
 
-				printf("Request Received: %d\n", iResult);
+			// Get the width and height of the image
+			width = atoi(split);
+			split = strtok(NULL, ";");
+			height = atoi(split);
 
-				printf("Width = %d", width);
-				printf("Height = %d", height);
+			printf("Request Received: %d\n", iResult);
 
-				char ack[] = "ACK";
-				if (send(new_socket, ack, sizeof(ack), 0) == SOCKET_ERROR)
-					printf("\nSENDING ACK FAILED");
-			
-				printf("\nSending ACK , %d\n",sizeof(ack));
-			}
+			printf("Width = %d", width);
+			printf("Height = %d", height);
 
-		}
-		if (iResult == SOCKET_ERROR) {
-			printf("SOCKET ERROR");
+			char ack[] = "ACK";
+			if (send(new_socket, ack, sizeof(ack), 0) == SOCKET_ERROR)
+				printf("\nSENDING ACK FAILED");
+
+			printf("\nSending ACK , %d\n", sizeof(ack));
 		}
 
+	}
+	if (iResult == SOCKET_ERROR) {
+		printf("SOCKET ERROR");
+	}
 
-		char *recvbuf = (char*)malloc(sizeof(char) * (width * height));
+	//Start receiving bytes stream
+	char* recvbuf = (char*)malloc(sizeof(char) * (width * height));
 
-	//FILE *output;
-	//output = fopen("Ctest.jpg", "a");
-
-	ofstream file;
-	file.open("Test.jpg", ios::out | ios::binary);
-	assert(file.is_open());
+	FILE* tempfile;
+	tempfile = tmpfile();
 
 	int readbyte = 0;
 	do {
 		iResult = recv(new_socket, recvbuf, (width * height), 0);
+
 		if (iResult > 0) {
-			file.write(recvbuf,iResult);
+			fwrite(recvbuf,sizeof(char),iResult,tempfile);
 			printf("Bytes received: %d\n", iResult);
 		}
 		else if (iResult == 0)
@@ -181,16 +161,14 @@ int OpenSocket(int argc, const char *argv[])
 
 		readbyte += iResult;
 	} while (iResult > 0);
-	file.close();
 
-	//fwrite(recvbuf, sizeof(char), readbyte, output);
-	//fclose(output);
-	printf("%d", count);
+	printf("Total Bytes Received = %d", readbyte);
 
+	faceRecognition(*tempfile);
+
+	fclose(tempfile);
+	
 	//Code image here
-
-	// Check for valid command line arguments, print usage
-	// if no arguments were given.
 
 	if (argc != 3) {
 		cout << "usage: " << argv[0] << " </path/to/haar_cascade> </path/to/csv.ext> </path/to/device id>" << endl;
@@ -201,6 +179,7 @@ int OpenSocket(int argc, const char *argv[])
 		//exit(1);
 	}
 	// Get the path to your CSV:
+	
 	/*Mat image;
 	string fn_haar = string(argv[1]);
 	string fn_csv = string(argv[2]);
@@ -273,8 +252,6 @@ int OpenSocket(int argc, const char *argv[])
 			int pos_y = max(face_i.tl().y - 10, 0);
 			putText(original, box_text, Point(pos_x, pos_y), FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0, 255, 0), 2.0);
 		}*/
-		//Mat imagenew = Mat(360, 260, CV_8U, &recvbuf).clone();
-		Mat imagenew = imread("Ctest.jpg");
 
 		// Show the result:
 		//imshow("face_recognizer", imagenew);
@@ -288,15 +265,20 @@ int OpenSocket(int argc, const char *argv[])
 
 	//End of Code image here
 	//Reply to client
-	message = "Hello Client , I have received your connection. But I have to go now, bye\n";
-	send(new_socket, message, strlen(message), 0);
-
-	getchar();
 
 	closesocket(s);
 	WSACleanup();
 
 	return 0;
+}
+
+// Do face recognition here
+void faceRecognition(FILE file) {
+
+	Mat receivedImage = imread();
+
+
+
 }
 
 
