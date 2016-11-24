@@ -20,8 +20,13 @@
 using namespace cv;
 using namespace std;
 
+#pragma comment(lib,"ws2_32.lib") //Winsock Library
+#define BUFFER_SIZE 512
+
 //Function identifier
 void faceRecognition(char fileName[]);
+static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';');
+int OpenSocket();
 
 static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';') {
 	std::ifstream file(filename.c_str(), ifstream::in);
@@ -42,10 +47,8 @@ static void read_csv(const string& filename, vector<Mat>& images, vector<int>& l
 	}
 }
 
-#pragma comment(lib,"ws2_32.lib") //Winsock Library
-#define BUFFER_SIZE 512
 
-int OpenSocket(int argc, const char *argv[])
+int OpenSocket()
 {
 	WSADATA wsa;
 	SOCKET s, new_socket;
@@ -171,21 +174,12 @@ int OpenSocket(int argc, const char *argv[])
 	printf("Total Bytes Received = %d", readbyte);
 
 	printf("%s", tempFileName);
-
 	faceRecognition(tempFileName);
-
 	fclose(tempfile);
 	
 	//Code image here
 
-	if (argc != 3) {
-		cout << "usage: " << argv[0] << " </path/to/haar_cascade> </path/to/csv.ext> </path/to/device id>" << endl;
-		cout << "\t </path/to/haar_cascade> -- Path to the Haar Cascade for face detection." << endl;
-		cout << "\t </path/to/csv.ext> -- Path to the CSV file with the face database." << endl;
-		//cout << "\t </path/to/jpg.ext> -- Path to the JPG file for comparing." << endl;
-		//cout << "\t <device id> -- The webcam device id to grab frames from." << endl;
-		//exit(1);
-	}
+	
 	// Get the path to your CSV:
 	
 	/*Mat image;
@@ -239,7 +233,7 @@ int OpenSocket(int argc, const char *argv[])
 
 		vector< Rect_<int> > faces;
 		haar_cascade.detectMultiScale(gray, faces);
-
+		 
 		for (int i = 0; i < faces.size(); i++) {
 			Rect face_i = faces[i];
 			Mat face = gray(face_i);
@@ -263,7 +257,6 @@ int OpenSocket(int argc, const char *argv[])
 		
 	}
 
-
 	//End of Code image here
 	//Reply to client
 
@@ -274,20 +267,22 @@ int OpenSocket(int argc, const char *argv[])
 }
 
 // Do face recognition here
-void faceRecognition(char fileName[]) {
-	while (1) {
-		Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
-		namedWindow("DisplayWindow", WINDOW_AUTOSIZE);
-		imshow("DisplayWindow", receivedImage);
-		char key = (char)waitKey(20);
-		// Exit this loop on escape:
-		if (key == 27)
-			break;
-	}
+void faceRecognition(char fileName[], String csvPath) {
+
+	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
+	
 }
 
 
 int main(int argc, const char *argv[]) {
+
+	if (argc != 3) {
+		cout << "usage: " << argv[0] << " </path/to/haar_cascade> </path/to/csv.ext> </path/to/device id>" << endl;
+		cout << "\t </path/to/haar_cascade> -- Path to the Haar Cascade for face detection." << endl;
+		cout << "\t </path/to/csv.ext> -- Path to the CSV file with the face database." << endl;
+		cout << "\t <device id> -- The webcam device id to grab frames from." << endl;
+		exit(1);
+	}
 
 	OpenSocket(argc, argv);
 
