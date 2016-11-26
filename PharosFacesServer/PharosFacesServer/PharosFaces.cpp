@@ -24,7 +24,7 @@ using namespace std;
 #define BUFFER_SIZE 512
 
 //Function identifier
-void faceRecognition(char fileName[]);
+void faceRecognition(char fileName[],String csvpath);
 static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';');
 int OpenSocket(int argc, const char *argv[]);
 
