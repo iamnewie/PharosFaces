@@ -26,7 +26,10 @@ using namespace std;
 //Function identifier
 void faceRecognition(char fileName[]);
 static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';');
-int OpenSocket();
+int OpenSocket(int argc, const char *argv[]);
+
+int argcTemp;
+char argvTemp[];
 
 static void read_csv(const string& filename, vector<Mat>& images, vector<int>& labels, char separator = ';') {
 	std::ifstream file(filename.c_str(), ifstream::in);
@@ -48,7 +51,7 @@ static void read_csv(const string& filename, vector<Mat>& images, vector<int>& l
 }
 
 
-int OpenSocket()
+int OpenSocket(int argc, const char *argv[])
 {
 	WSADATA wsa;
 	SOCKET s, new_socket;
@@ -176,90 +179,6 @@ int OpenSocket()
 	printf("%s", tempFileName);
 	faceRecognition(tempFileName);
 	fclose(tempfile);
-	
-	//Code image here
-
-	
-	// Get the path to your CSV:
-	
-	/*Mat image;
-	string fn_haar = string(argv[1]);
-	string fn_csv = string(argv[2]);
-	//int deviceId = atoi(argv[3]);
-	image = imread(argv[3]);
-	// These vectors hold the images and corresponding labels:
-	vector<Mat> images;
-	vector<int> labels;
-	// Read in the data (fails if no valid input filename is given, but you'll get an error message):
-	try {
-		read_csv(fn_csv, images, labels);
-	}
-	catch (cv::Exception& e) {
-		cerr << "Error opening file \"" << fn_csv << "\". Reason: " << e.msg << endl;
-		// nothing more we can do
-		exit(1);
-	}*/
-	// Get the height from the first image. We'll need this
-	// later in code to reshape the images to their original
-	// size AND we need to reshape incoming faces to this size:
-	/*int im_width = images[0].cols;
-	int im_height = images[0].rows;
-	// Create a FaceRecognizer and train it on the given images:
-	Ptr<FaceRecognizer> model = createEigenFaceRecognizer();
-	model->train(images, labels);
-	// That's it for learning the Face Recognition model. You now
-	// need to create the classifier for the task of Face Detection.
-	// We are going to use the haar cascade you have specified in the
-	// command line arguments:
-	//
-	CascadeClassifier haar_cascade;
-	haar_cascade.load(fn_haar);
-	// Get a handle to the Video device:
-	//VideoCapture cap(deviceId);
-	// Check if we can use this device at all:
-	//if (!cap.isOpened()) {
-	//	cerr << "Capture Device ID " << deviceId << "cannot be opened." << endl;
-	//	return -1;
-	//}
-	// Holds the current frame from the Video device:
-	//Mat frame;*/
-
-	for (;;) {
-
-		/*Mat original = image.clone();
-
-		Mat gray;
-		cvtColor(original, gray, CV_BGR2GRAY);
-
-		vector< Rect_<int> > faces;
-		haar_cascade.detectMultiScale(gray, faces);
-		 
-		for (int i = 0; i < faces.size(); i++) {
-			Rect face_i = faces[i];
-			Mat face = gray(face_i);
-			Mat face_resized;
-			cv::resize(face, face_resized, Size(im_width, im_height), 1.0, 1.0, INTER_CUBIC);
-			int prediction = model->predict(face_resized);
-			string name;
-			if (prediction == 0) {
-				name = "Atek";
-			}
-			else
-			{
-				name = "Nelson";
-			}
-			rectangle(original, face_i, CV_RGB(0, 255, 0), 1);
-			string box_text = format("Prediction = %d", prediction);
-			int pos_x = max(face_i.tl().x - 10, 0);
-			int pos_y = max(face_i.tl().y - 10, 0);
-			putText(original, box_text, Point(pos_x, pos_y), FONT_HERSHEY_PLAIN, 1.0, CV_RGB(0, 255, 0), 2.0);
-		}*/
-		
-	}
-
-	//End of Code image here
-	//Reply to client
-
 	closesocket(s);
 	WSACleanup();
 
@@ -269,7 +188,30 @@ int OpenSocket()
 // Do face recognition here
 void faceRecognition(char fileName[], String csvPath) {
 
+	vector<Mat> images;
+	vector<int> labels;
+	try {
+		read_csv(getenv("DATASET_CSV"), images, labels);
+	}
+	catch (Exception e) {
+		cerr << "Error opening file" << getenv("DATASET_CSV") << " Reason: " << e.msg << endl;
+		exit(1);
+	}
+
+	if (images.size() <= 1) {
+		string error_message = "This demo needs at least 2 images to work. Please add more images to your data set!";
+		CV_Error(CV_StsError, error_message);
+	
+	}
+
+	int height = images[0].row;
+
 	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
+	Ptr<FaceRecognizer> model = createEigenFaceRecognizer();
+	model->train(images, labels);
+
+
+
 	
 }
 
