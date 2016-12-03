@@ -12,6 +12,7 @@
 #include <string>
 #include<io.h>
 #include<stdio.h>
+#include <conio.h>
 #include<winsock2.h>
 #include <windows.h>
 #include <winapifamily.h>
@@ -24,7 +25,7 @@ using namespace std;
 #define BUFFER_SIZE 512
 
 //Function identifier
-void faceRecognition(char fileName[]);
+void faceRecognition(char fileName[]);	
 int OpenSocket();
 
 int argcTemp;
@@ -188,9 +189,6 @@ void faceRecognition(char fileName[]) {
 	vector<Mat> images;
 	vector<int> labels;
 
-	string fn_haar = getenv("%OPENCV_DIR%\..\..\..\sources\data\haar");
-	CascadeClassifier haar_cascade;
-
 	try {
 		printf("\nDATASET = %s", getenv("DATASET_CSV"));
 		read_csv(getenv("DATASET_CSV"), images, labels);
@@ -208,10 +206,12 @@ void faceRecognition(char fileName[]) {
 	int height = images[0].rows;
 
 	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
+	Mat receivedImageFlipped;               // dst must be a different Mat
+	flip(receivedImage, receivedImageFlipped, 1);
 	Mat gray;
-	Ptr<FaceRecognizer> model = createLBPHFaceRecognizer();
+	Ptr<FaceRecognizer> model = createEigenFaceRecognizer(10,numeric_limits<double>::infinity());
 	model->train(images, labels);
-	cvtColor(receivedImage,gray,CV_BGR2GRAY);
+	cvtColor(receivedImageFlipped,gray,CV_BGR2GRAY);
 
 	while (1){
 		char key = (char)waitKey(20);
@@ -220,11 +220,11 @@ void faceRecognition(char fileName[]) {
 			break;
 		}
 	}
-
 	int predictedLabel = model->predict(gray);
 
 	string result_message = format("Predicted class = %d.", predictedLabel);
 	cout << result_message << endl;
+	getch();
 }
 
 

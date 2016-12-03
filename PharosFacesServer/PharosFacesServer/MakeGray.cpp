@@ -15,8 +15,12 @@
 using namespace cv;
 using namespace std;
 
+
 /*int main(int argc, char** argv) {
-	printf("")
+
+	vector<Mat> images;
+	vector<int> labels;
+
 	for (int i = 1; i < argc; i++) {
 		char* imagename = argv[i];
 		printf("image name : %s", imagename);
