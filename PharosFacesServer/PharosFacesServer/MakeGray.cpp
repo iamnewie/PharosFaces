@@ -16,7 +16,7 @@ using namespace cv;
 using namespace std;
 
 
-/*int main(int argc, char** argv) {
+int main(int argc, char** argv) {
 
 	vector<Mat> images;
 	vector<int> labels;
@@ -30,4 +30,4 @@ using namespace std;
 		imwrite(imagename, gray);
 	}
 	return 0;
-}*/
+}

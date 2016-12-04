@@ -27,7 +27,7 @@ using namespace std;
 #define BUFFER_SIZE 512
 
 //Function identifier
-int faceRecognition(char fileName[]);
+int faceRecognition(char fileName[], Ptr<FaceRecognizer> model);
 
 int argcTemp;
 char argvTemp[];
@@ -214,8 +214,6 @@ int main(int argc, const char *argv[]) {
 					printf("koneksi gagal");
 					return 0;
 				}
-
-				cout << "IM HERE";
 				split = strtok(responsebuff, ";"); 
 				split = strtok(NULL, ";");
 				userid = split;
