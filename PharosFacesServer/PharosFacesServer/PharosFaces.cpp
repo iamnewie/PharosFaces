@@ -5,7 +5,6 @@
 #include "opencv2/objdetect/objdetect.hpp"
 
 
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -16,6 +15,9 @@
 #include<winsock2.h>
 #include <windows.h>
 #include <winapifamily.h>
+
+#include <mysql.h>
+
 #define WIN32_LEAN_AND_MEAN
 
 using namespace cv;
@@ -25,8 +27,7 @@ using namespace std;
 #define BUFFER_SIZE 512
 
 //Function identifier
-void faceRecognition(char fileName[]);	
-int OpenSocket();
+int faceRecognition(char fileName[]);
 
 int argcTemp;
 char argvTemp[];
@@ -51,140 +52,20 @@ static void read_csv(const string& filename, vector<Mat>& images, vector<int>& l
 }
 
 
-int OpenSocket()
-{
-	WSADATA wsa;
-	SOCKET s, new_socket;
-	struct sockaddr_in server, client;
-	int c;
+// Do face recognition here
+int faceRecognition(char fileName[], Ptr<FaceRecognizer> model) {
 
-	printf("\nInitialising Winsock...");
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-	{
-		printf("Failed. Error Code : %d", WSAGetLastError());
-		return 1;
-	}
+	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
+	Mat receivedImageFlipped;               // dst must be a different Mat
+	flip(receivedImage, receivedImageFlipped, 1);
+	Mat gray;
+	cvtColor(receivedImageFlipped,gray,CV_BGR2GRAY);
 
-	printf("Initialised.\n");
-
-	//Create a socket
-	if ((s = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
-	{
-		printf("Could not create socket : %d", WSAGetLastError());
-	}
-
-	printf("Socket created.\n");
-
-	//Prepare the sockaddr_in structure
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons(2000);
-
-	//Bind
-	if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
-	{
-		printf("Bind failed with error code : %d", WSAGetLastError());
-		return 0;
-	}
-
-	puts("Bind done");
-
-	//Listen to incoming connections
-	listen(s, 10);
-
-	//Accept and incoming connection
-
-	puts("Waiting for incoming connections...");
-
-	c = sizeof(struct sockaddr_in);
-
-	new_socket = accept(s, (struct sockaddr *)&client, &c);
-	if (new_socket == INVALID_SOCKET)
-	{
-		printf("accept failed with error code : %d", WSAGetLastError());
-		return 0;
-	}
-
-	puts("Connection accepted");
-
-	//Code STREAM CODE HERE
-
-	//Listen for response code for Initiation
-	int iResult = 0;
-	int width;
-	int height;
-	char responsebuff[BUFFER_SIZE];
-
-	iResult = recv(new_socket, responsebuff, BUFFER_SIZE, 0);
-	if (iResult > 0) {
-
-		string str(responsebuff);
-		printf("Response buff is %s", responsebuff);
-		size_t found = str.find("SIZE");
-		if (found != string::npos) {
-			char * split;
-			split = strtok(responsebuff, ";");
-			split = strtok(NULL, ";");
-
-			// Get the width and height of the image
-			width = atoi(split);
-			split = strtok(NULL, ";");
-			height = atoi(split);
-
-			printf("Request Received: %d\n", iResult);
-
-			printf("Width = %d", width);
-			printf("Height = %d", height);
-
-			char ack[] = "ACK";
-			if (send(new_socket, ack, sizeof(ack), 0) == SOCKET_ERROR)
-				printf("\nSENDING ACK FAILED");
-
-			printf("\nSending ACK , %d\n", sizeof(ack));
-		}
-
-	}
-	if (iResult == SOCKET_ERROR) {
-		printf("SOCKET ERROR");
-	}
-
-	//Start receiving bytes stream
-	char* recvbuf = (char*)malloc(sizeof(char) * (width * height));
-
-	FILE* tempfile;
-	char tempFileName[L_tmpnam]; // Create temporary file name
-	tmpnam(tempFileName);
-	tempfile = fopen(tempFileName, "wb");
-
-	int readbyte = 0;
-	do {
-		iResult = recv(new_socket, recvbuf, (width * height), 0);
-
-		if (iResult > 0) {
-			fwrite(recvbuf,sizeof(char),iResult,tempfile);
-			printf("Bytes received: %d\n", iResult);
-		}
-		else if (iResult == 0)
-			printf("Connection closed\n");
-		else
-			printf("recv failed: %d\n", WSAGetLastError());
-
-		readbyte += iResult;
-	} while (iResult > 0);
-
-	printf("Total Bytes Received = %d\n", readbyte);
-
-	printf("%s", tempFileName);
-	faceRecognition(tempFileName);
-	fclose(tempfile);
-	closesocket(s);
-	WSACleanup();
-
-	return 0;
+	int predictedLabel = model->predict(gray);
+	return predictedLabel;
 }
 
-// Do face recognition here
-void faceRecognition(char fileName[]) {
+Ptr<FaceRecognizer> training(Ptr<FaceRecognizer> model) {
 
 	vector<Mat> images;
 	vector<int> labels;
@@ -204,32 +85,250 @@ void faceRecognition(char fileName[]) {
 	}
 
 	int height = images[0].rows;
-
-	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
-	Mat receivedImageFlipped;               // dst must be a different Mat
-	flip(receivedImage, receivedImageFlipped, 1);
-	Mat gray;
-	Ptr<FaceRecognizer> model = createEigenFaceRecognizer(10,numeric_limits<double>::infinity());
+	model = createEigenFaceRecognizer(10, numeric_limits<double>::infinity());
 	model->train(images, labels);
-	cvtColor(receivedImageFlipped,gray,CV_BGR2GRAY);
-
-	while (1){
-		char key = (char)waitKey(20);
-		imshow("face_recognizer", gray);
-		if (key == 27) {
-			break;
-		}
-	}
-	int predictedLabel = model->predict(gray);
-
-	string result_message = format("Predicted class = %d.", predictedLabel);
-	cout << result_message << endl;
-	getch();
+	return model;
 }
 
 
 int main(int argc, const char *argv[]) {
 
-	OpenSocket();
+	WSADATA wsa;
+	SOCKET s, new_socket;
+	struct sockaddr_in server, client;
+	int c;
+	Ptr<FaceRecognizer> model;
+	MYSQL *conn;
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+	const char *server_mysql = "localhost";
+	const char *user = "root";
+	const char *password = "";
+	const char *database = "pharos";
+	const int port = 3306;
+
+	
+	//Start training
+	model = training(model);
+
+	//Start loop to accept connection
+	while (true)
+	{
+		printf("\nInitialising Winsock...");
+		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+			printf("Failed. Error Code : %d", WSAGetLastError());
+			getch();
+			return 1;
+		}
+
+		printf("Initialised.\n");
+
+		//Create a socket
+		if ((s = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+			printf("Could not create socket : %d", WSAGetLastError());
+		}
+
+		printf("Socket created.\n");
+
+		//Prepare the sockaddr_in structure
+		server.sin_family = AF_INET;
+		server.sin_addr.s_addr = INADDR_ANY;
+		server.sin_port = htons(2000);
+
+		//Bind
+		if (bind(s, (struct sockaddr *)&server, sizeof(server)) == SOCKET_ERROR) {
+			printf("Bind failed with error code : %d", WSAGetLastError());
+			return 0;
+		}
+
+		puts("Bind done");
+
+		//Listen to incoming connections
+		listen(s, 10);
+
+		//Accept and incoming connection
+
+		puts("Waiting for incoming connections...");
+
+		c = sizeof(struct sockaddr_in);
+
+		new_socket = accept(s, (struct sockaddr *)&client, &c);
+		if (new_socket == INVALID_SOCKET) {
+			printf("accept failed with error code : %d", WSAGetLastError());
+			return 0;
+		}
+
+		puts("Connection accepted");
+
+		//Code STREAM CODE HERE
+
+		//Listen for response code for Initiation
+		int iResult = 0;
+		int width;
+		int height;
+		int totalByte = 0;
+
+		char responsebuff[BUFFER_SIZE];
+		size_t found = NULL;
+		char * split;
+		string userid;
+
+		iResult = recv(new_socket, responsebuff, BUFFER_SIZE, 0);
+
+		if (iResult > 0) {
+
+			responsebuff[iResult] = '\0';
+			string str(responsebuff);
+
+			cout << "Response buff is " << str << endl;
+
+			if (str.find("SIZE") != string::npos) {
+				
+				split = strtok(responsebuff, ";");
+				split = strtok(NULL, ";");
+
+				// Get the width and height of the image
+				width = atoi(split);
+				split = strtok(NULL, ";");
+				height = atoi(split);
+				split = strtok(NULL, ";");
+				totalByte = atoi(split);
+
+				printf("Request Received: %d\n", iResult);
+
+				printf("Width = %d", width);
+				printf("Height = %d", height);
+				printf("Total byte about to be received = %d", totalByte);
+
+				char ack[] = "ACK";
+				if (send(new_socket, ack, sizeof(ack), 0) == SOCKET_ERROR)
+					printf("\nSENDING ACK FAILED");
+
+				printf("\nSending ACK , %d\n", sizeof(ack));
+			}
+			
+			if (str.find("LOGOUT") != string::npos) {
+				
+				conn = mysql_init(NULL);
+				if (!mysql_real_connect(conn, server_mysql, user, password, database, port, NULL, 0)) {
+					printf("koneksi gagal");
+					return 0;
+				}
+
+				cout << "IM HERE";
+				split = strtok(responsebuff, ";"); 
+				split = strtok(NULL, ";");
+				userid = split;
+
+				string query = "insert into log(id,status) values('";
+				query += userid + "','0')";
+				mysql_query(conn,query.c_str());
+				mysql_close(conn);
+
+				closesocket(s);
+				WSACleanup();
+				continue;
+			}
+
+		}
+		if (iResult == SOCKET_ERROR) {
+			printf("SOCKET ERROR");
+		}
+
+		//Start receiving bytes stream
+		char* recvbuf = (char*)malloc(sizeof(char) * (width * height));
+		char* tempbuf;
+		FILE* tempfile;
+		char tempFileName[L_tmpnam]; // Create temporary file name
+		tmpnam(tempFileName);
+		tempfile = fopen(tempFileName, "wb");
+		int readbyte = 0;
+
+		do {
+			iResult = recv(new_socket, recvbuf, (width * height), 0);
+			recvbuf[iResult] = '/0';
+			if (iResult > 0) {
+				fwrite(recvbuf, sizeof(char), iResult, tempfile);
+				printf("Bytes received: %d\n", iResult);
+			}
+			else if (iResult == 0)
+				printf("Connection closed\n");
+			else
+				printf("recv failed: %d\n", WSAGetLastError());
+			readbyte += iResult;
+			//break loop sampai semua byte keterima
+			if (readbyte == totalByte) {
+				break;
+			}
+		} while (iResult > 0);
+
+		printf("Total Bytes Received = %d\n", readbyte);
+
+		printf("%s", tempFileName);
+		int karyawanID = faceRecognition(tempFileName,model);
+		printf("karyawan ID : %d\n", karyawanID);
+
+
+		// Membuka koneksi ke mysql server
+		conn = mysql_init(NULL);
+		if (!mysql_real_connect(conn, server_mysql, user, password, database, port, NULL, 0)) {
+			printf("koneksi gagal");
+			return 0;
+		}
+
+		// Query string
+		String query = "select name from staff where id=";
+		query += to_string(karyawanID);
+		mysql_query(conn, query.c_str());
+		res = mysql_store_result(conn);
+
+		int num_fields = mysql_num_fields(res);
+
+		// Fetch all rows from the result
+
+		String username;
+
+		while ((row = mysql_fetch_row(res))) {
+			for (int i = 0; i < num_fields; i++)
+			{
+				if (row[i] != NULL) {
+					cout << row[i] << endl;
+					username = row[i];
+				}
+			}
+		}
+
+		string message = to_string(karyawanID) + ";" + username;
+		//Send username to client
+		if (send(new_socket, message.c_str(), sizeof(username), 0) == SOCKET_ERROR)
+			printf("\nSENDING NAME FAILED");
+
+		char confirmBuff[BUFFER_SIZE];
+
+		iResult = recv(new_socket, confirmBuff, BUFFER_SIZE, 0);
+
+
+		if (iResult > 0) {
+			confirmBuff[iResult] = '\0';
+
+			if (strcmp(confirmBuff, "yes") == 0) {
+				printf("Confirm buff is %s \n", confirmBuff);
+				query = "insert into log(id,status) values('";
+				query += to_string(karyawanID);
+				query += "','";
+				query += "1')";
+				mysql_query(conn, query.c_str());
+			}
+
+			if (strcmp(confirmBuff, "no") == 0) {
+				printf("Confirm buff is %s \n", confirmBuff);
+			}
+		}
+		mysql_close(conn);
+		fclose(tempfile);
+		closesocket(s);
+		WSACleanup();
+		continue;
+	}
 	return 0;
 }
