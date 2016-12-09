@@ -84,7 +84,6 @@ Ptr<FaceRecognizer> training(Ptr<FaceRecognizer> model) {
 	}
 
 	int height = images[0].rows;
-	signed int i;
 	model = createEigenFaceRecognizer(10, numeric_limits<double>::infinity());
 	model->train(images, labels);
 	return model;
@@ -117,8 +116,7 @@ int main(int argc, const char *argv[]) {
 		printf("\nInitialising Winsock...");
 		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
 			printf("Failed. Error Code : %d", WSAGetLastError());
-			getch();
-			return 1;
+			return 0;
 		}
 
 		printf("Initialised.\n");
@@ -185,13 +183,13 @@ int main(int argc, const char *argv[]) {
 			if (str.find("SIZE") != string::npos) {
 				
 				split = strtok(responsebuff, ";");
-				split = strtok(NULL, ";");
+				split = strtok(nullptr, ";");
 
 				// Get the width and height of the image
 				width = atoi(split);
-				split = strtok(NULL, ";");
+				split = strtok(nullptr, ";");
 				height = atoi(split);
-				split = strtok(NULL, ";");
+				split = strtok(nullptr, ";");
 				totalByte = atoi(split);
 
 				printf("Request Received: %d\n", iResult);
@@ -200,22 +198,25 @@ int main(int argc, const char *argv[]) {
 				printf("Height = %d", height);
 				printf("Total byte about to be received = %d", totalByte);
 
-				char ack[] = "ACK";
-				if (send(new_socket, ack, sizeof(ack), 0) == SOCKET_ERROR)
+				if (send(new_socket, "ACK", sizeof("ACK"), 0) == SOCKET_ERROR) {
 					printf("\nSENDING ACK FAILED");
 
-				printf("\nSending ACK , %d\n", sizeof(ack));
+				}
+				else{
+					printf("\nSending ACK , %d\n", sizeof("ACK"));
+					
+				}
 			}
 			
 			if (str.find("LOGOUT") != string::npos) {
 				
-				conn = mysql_init(NULL);
+				conn = mysql_init(nullptr);
 				if (!mysql_real_connect(conn, server_mysql, user, password, database, port, NULL, 0)) {
 					printf("koneksi gagal");
 					return 0;
 				}
 				split = strtok(responsebuff, ";"); 
-				split = strtok(NULL, ";");
+				split = strtok(nullptr, ";");
 				userid = split;
 
 				string query = "insert into log(id,status) values('";
@@ -235,7 +236,6 @@ int main(int argc, const char *argv[]) {
 
 		//Start receiving bytes stream
 		char* recvbuf = (char*)malloc(sizeof(char) * (width * height));
-		char* tempbuf;
 		FILE* tempfile;
 		char tempFileName[L_tmpnam]; // Create temporary file name
 		tmpnam(tempFileName);
@@ -268,8 +268,8 @@ int main(int argc, const char *argv[]) {
 
 
 		// Membuka koneksi ke mysql server
-		conn = mysql_init(NULL);
-		if (!mysql_real_connect(conn, server_mysql, user, password, database, port, NULL, 0)) {
+		conn = mysql_init(nullptr);
+		if (!mysql_real_connect(conn, server_mysql, user, password, database, port, nullptr, 0)) {
 			printf("koneksi gagal");
 			return 0;
 		}
@@ -289,17 +289,18 @@ int main(int argc, const char *argv[]) {
 		while ((row = mysql_fetch_row(res))) {
 			for (int i = 0; i < num_fields; i++)
 			{
-				if (row[i] != NULL) {
+				if (row[i] != nullptr) {
 					cout << row[i] << endl;
 					username = row[i];
 				}
 			}
 		}
 
-		string message = to_string(karyawanID) + ";" + username;
+		String message = to_string(karyawanID) + ";" + username;
 		//Send username to client
-		if (send(new_socket, message.c_str(), sizeof(username), 0) == SOCKET_ERROR)
-			printf("\nSENDING NAME FAILED");
+
+		if (send(new_socket, message.c_str(), sizeof(message), 0) == SOCKET_ERROR)
+			printf("\nSENDING USERNAME FAILED");
 
 		char confirmBuff[BUFFER_SIZE];
 
@@ -310,12 +311,44 @@ int main(int argc, const char *argv[]) {
 			confirmBuff[iResult] = '\0';
 
 			if (strcmp(confirmBuff, "yes") == 0) {
+
 				printf("Confirm buff is %s \n", confirmBuff);
-				query = "insert into log(id,status) values('";
-				query += to_string(karyawanID);
-				query += "','";
-				query += "1')";
+				query = "select count(*) from log where DATE(NOW()) = DATE(date) and id='" + to_string(karyawanID) + "' and status='1'";
+
 				mysql_query(conn, query.c_str());
+
+				res = mysql_store_result(conn);
+
+				num_fields = mysql_num_fields(res);
+				String dateCount;
+
+				while ((row = mysql_fetch_row(res))) {
+					for (int i = 0; i < num_fields; i++)
+					{
+						if (row[i] != nullptr) {
+							cout << row[i] << endl;
+							dateCount = row[i];
+						}
+					}
+				}
+
+				if (dateCount.compare("1") == 0) {
+
+					if (send(new_socket, "FAIL", sizeof("FAIL"), 0) == SOCKET_ERROR) {
+						printf("\nSENDING FAIL MESSAGE FAILED");
+					}
+					else
+					printf("\nSending FAIL Message , %d\n", sizeof("FAIL"));
+				}
+				else{
+					query = "insert into log(id, status) values('" + to_string(karyawanID) + " ',' " + "1')";
+					mysql_query(conn, query.c_str()); 
+					if (send(new_socket, "SUCCESS", sizeof("SUCCESS"), 0) == SOCKET_ERROR) {
+						printf("\nSENDING SUCCESS MESSAGE FAILED");
+					}
+					else
+					printf("\nSending SUCCESS Message , %d\n", sizeof("SUCCESS"));
+				}
 			}
 
 			if (strcmp(confirmBuff, "no") == 0) {
@@ -326,7 +359,5 @@ int main(int argc, const char *argv[]) {
 		fclose(tempfile);
 		closesocket(s);
 		WSACleanup();
-		continue;
 	}
-	return 0;
 }
