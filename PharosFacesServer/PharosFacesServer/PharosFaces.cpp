@@ -54,7 +54,6 @@ static void read_csv(const string& filename, vector<Mat>& images, vector<int>& l
 
 // Do face recognition here
 int faceRecognition(char fileName[], Ptr<FaceRecognizer> model) {
-
 	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
 	Mat receivedImageFlipped;               // dst must be a different Mat
 	flip(receivedImage, receivedImageFlipped, 1);
@@ -72,7 +71,7 @@ Ptr<FaceRecognizer> training(Ptr<FaceRecognizer> model) {
 
 	try {
 		printf("\nDATASET = %s", getenv("DATASET_CSV"));
-		read_csv(getenv("DATASET_CSV"), images, labels);
+		read_csv("dataset.csv", images, labels);
 	}
 	catch (Exception e) {
 		cerr << "Error opening file" << getenv("DATASET_CSV") << " Reason: " << e.msg << endl;
@@ -85,6 +84,7 @@ Ptr<FaceRecognizer> training(Ptr<FaceRecognizer> model) {
 	}
 
 	int height = images[0].rows;
+	signed int i;
 	model = createEigenFaceRecognizer(10, numeric_limits<double>::infinity());
 	model->train(images, labels);
 	return model;
