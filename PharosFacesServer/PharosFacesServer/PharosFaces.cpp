@@ -54,9 +54,15 @@ static void read_csv(const string& filename, vector<Mat>& images, vector<int>& l
 
 // Do face recognition here
 int faceRecognition(char fileName[], Ptr<FaceRecognizer> model) {
-	Mat receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
-	Mat receivedImageFlipped;               // dst must be a different Mat
-	flip(receivedImage, receivedImageFlipped, 1);
+	Size size(1280, 960);
+	Mat receivedImage;
+	Mat receivedImageFlipped;
+	Mat resizedImage;
+
+	receivedImage = imread(fileName, CV_LOAD_IMAGE_COLOR);
+	resize(receivedImage, resizedImage, size);
+	// Resize gambar input sesuai dengan size dataset          // dst must be a different Mat
+	flip(resizedImage, receivedImageFlipped, 1);
 	Mat gray;
 	cvtColor(receivedImageFlipped,gray,CV_BGR2GRAY);
 
