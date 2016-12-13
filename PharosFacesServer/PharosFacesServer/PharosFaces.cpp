@@ -357,9 +357,6 @@ int main(int argc, const char *argv[]) {
 				}
 			}
 
-			if (strcmp(confirmBuff, "no") == 0) {
-				printf("Confirm buff is %s \n", confirmBuff);
-			}
 		}
 		mysql_close(conn);
 		fclose(tempfile);
